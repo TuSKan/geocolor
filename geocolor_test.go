@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	_ "github.com/gomlx/gomlx/backends/xla"
+	_ "github.com/gomlx/gomlx/backends/default"
 
 	"github.com/TuSKan/geocolor"
 	"github.com/gomlx/gomlx/backends"
@@ -14,7 +14,6 @@ import (
 )
 
 func TestGeocolorPipeline(t *testing.T) {
-	// 1. Initialize a pure go xla backend
 	backend, err := backends.New()
 	if err != nil {
 		t.Fatalf("Failed to initialize backend: %v", err)
