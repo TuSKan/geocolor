@@ -30,7 +30,14 @@ func TestGeocolorPipeline(t *testing.T) {
 	// 3. Create the execution closure for the end-to-end pipeline
 	pipelineFn := func(ctx *context.Context, g *graph.Graph) *graph.Node {
 		// a. Build Coordinate Grid
-		coords := geocolor.BuildCoordinateGridGraph(g, resL, resA, resB, minBounds, maxBounds)
+		coords := geocolor.BuildCoordinateGridGraph(g, &geocolor.GridConfig{
+			ResL:        resL,
+			ResA:        resA,
+			ResB:        resB,
+			MinBounds:   minBounds,
+			MaxBounds:   maxBounds,
+			OriginIndex: originIndex,
+		})
 
 		// b. Compute Local Metric Tensor
 		localMetrics := geocolor.ComputeLocalMetric(g, coords)
@@ -62,7 +69,7 @@ func TestGeocolorPipeline(t *testing.T) {
 	}
 
 	geometryTensor := results[0]
-	
+
 	// 5. Extract underlying float32 slice
 	vals, ok := geometryTensor.Value().([][][][]float32)
 	if !ok {
@@ -73,7 +80,7 @@ func TestGeocolorPipeline(t *testing.T) {
 	// 6. Assertions over resulting geometry
 	for L := 0; L < resL; L++ {
 		minC_geo := float32(math.Inf(1))
-		
+
 		for a := 0; a < resA; a++ {
 			for b := 0; b < resB; b++ {
 				// Structure is [L, C_geo, h_geo]
