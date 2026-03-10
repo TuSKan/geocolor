@@ -20,22 +20,22 @@ func ComputeGeometricColor(ctx *graph.Graph, coords *graph.Node, neutralIndices 
 	aIdx := graph.SliceAxis(neutralIndices, 1, graph.AxisRange(0, 1))
 	bIdx := graph.SliceAxis(neutralIndices, 1, graph.AxisRange(1, 2))
 
-	// Cast to Float32 for math
-	aIdxF := graph.ConvertType(aIdx, dtypes.Float32)
-	bIdxF := graph.ConvertType(bIdx, dtypes.Float32)
+	// Cast to float64 for math
+	aIdxF := graph.ConvertType(aIdx, dtypes.Float64)
+	bIdxF := graph.ConvertType(bIdx, dtypes.Float64)
 
 	// Scale integer index to continuous space: val = idx * scale + min
 	// where scale = (max - min) / (res - 1)
-	resAMinus1 := float32(resA - 1)
+	resAMinus1 := float64(resA - 1)
 	if resAMinus1 <= 0 { resAMinus1 = 1.0 }
-	scaleA := graph.Const(ctx, float32(aMax - aMin) / resAMinus1)
-	minA := graph.Const(ctx, float32(aMin))
+	scaleA := graph.Const(ctx, float64(aMax - aMin) / resAMinus1)
+	minA := graph.Const(ctx, float64(aMin))
 	aNeutral := graph.Add(graph.Mul(aIdxF, scaleA), minA) // [resL, 1]
 
-	resBMinus1 := float32(resB - 1)
+	resBMinus1 := float64(resB - 1)
 	if resBMinus1 <= 0 { resBMinus1 = 1.0 }
-	scaleB := graph.Const(ctx, float32(bMax - bMin) / resBMinus1)
-	minB := graph.Const(ctx, float32(bMin))
+	scaleB := graph.Const(ctx, float64(bMax - bMin) / resBMinus1)
+	minB := graph.Const(ctx, float64(bMin))
 	bNeutral := graph.Add(graph.Mul(bIdxF, scaleB), minB) // [resL, 1]
 
 	// 2. Broadcast neutral coordinates to full grid shape

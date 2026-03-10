@@ -20,7 +20,7 @@ func main() {
 		OriginIndex: [3]int{0, 50, 50}, // Points exactly to L=0, a=0, b=0
 	}
 
-	cParam := float32(0.05) // Relaxed dampening curve
+	cParam := float64(0.05) // Relaxed dampening curve
 
 	// 2. Initialize and Compute
 	log.Println("Compiling and executing XLA tensor graph...")

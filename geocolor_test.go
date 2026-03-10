@@ -46,11 +46,11 @@ func TestGeocolorPipeline(t *testing.T) {
 		distances := geocolor.SolveGlobalDistances(g, localMetrics, originIndex)
 
 		// d. Apply Diminishing Returns scaling (c = 0.1)
-		cParam := graph.Const(g, float32(0.1))
+		cParam := graph.Const(g, float64(0.1))
 		dampened := geocolor.ApplyDiminishingReturns(g, distances, cParam)
 
 		// e. Extract Neutral Axis
-		neutralIndices := geocolor.ExtractNeutralAxis(g, dampened)
+		neutralIndices := geocolor.ExtractNeutralIndices(g, dampened)
 
 		// f. Compute final Geometric Chroma and Hue parameters
 		finalGeometry := geocolor.ComputeGeometricColor(g, coords, neutralIndices, minBounds, maxBounds)
@@ -70,16 +70,16 @@ func TestGeocolorPipeline(t *testing.T) {
 
 	geometryTensor := results[0]
 
-	// 5. Extract underlying float32 slice
-	vals, ok := geometryTensor.Value().([][][][]float32)
+	// 5. Extract underlying float64 slice
+	vals, ok := geometryTensor.Value().([][][][]float64)
 	if !ok {
 		// Use tensor parsing if direct recast fails based on backend shape mapping
-		t.Fatalf("Result tensor was not [][][][]float32")
+		t.Fatalf("Result tensor was not [][][][]float64")
 	}
 
 	// 6. Assertions over resulting geometry
 	for L := 0; L < resL; L++ {
-		minC_geo := float32(math.Inf(1))
+		minC_geo := float64(math.Inf(1))
 
 		for a := 0; a < resA; a++ {
 			for b := 0; b < resB; b++ {

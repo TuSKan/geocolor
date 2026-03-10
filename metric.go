@@ -9,11 +9,11 @@ import (
 // ComputeLocalMetric calculates a simplified local metric tensor based on the CIEDE2000 color difference formula.
 // It returns a tensor natively representing the edge scaling weights for adjacent voxels in the [L, a, b] grid.
 func ComputeLocalMetric(ctx *graph.Graph, coords *graph.Node) *graph.Node {
-	fMin := graph.Const(ctx, float32(1e-7))
-	fOne := graph.Const(ctx, float32(1.0))
+	fMin := graph.Const(ctx, float64(1e-7))
+	fOne := graph.Const(ctx, float64(1.0))
 
 	// Helper for easy constants
-	c := func(val float32) *graph.Node { return graph.Const(ctx, val) }
+	c := func(val float64) *graph.Node { return graph.Const(ctx, val) }
 
 	// Extract channels
 	L := graph.SliceAxis(coords, -1, graph.AxisRange(0, 1))
@@ -32,7 +32,7 @@ func ComputeLocalMetric(ctx *graph.Graph, coords *graph.Node) *graph.Node {
 	h := graph.Atan2(b, a)
 
 	// Precompute degrees in radians for standard Go math to use as GoMLX constants
-	deg2rad := float32(math.Pi / 180.0)
+	deg2rad := float64(math.Pi / 180.0)
 	
 	// T = 1 - 0.17 cos(h - 30°) + 0.24 cos(2h) + 0.32 cos(3h + 6°) - 0.20 cos(4h - 63°)
 	

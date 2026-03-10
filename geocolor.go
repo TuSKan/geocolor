@@ -14,37 +14,44 @@ import (
 )
 
 type ColorSpace struct {
-	ctx      *context.Context
-	backend  backends.Backend
-	pipeline func(ctx *context.Context, g *graph.Graph) *graph.Node
-	results  *tensors.Tensor
+	ctx         *context.Context
+	backend     backends.Backend
+	colorsLCH   *tensors.Tensor
+	colorsRGB   *tensors.Tensor
+	neutralAxis *tensors.Tensor
 
 	grid   *GridConfig
-	cParam float32
+	cParam float64
 }
 
-func NewColorSpace(grid *GridConfig, c float32) *ColorSpace {
+func NewColorSpace(grid *GridConfig, c float64) *ColorSpace {
 	return &ColorSpace{
 		ctx:     context.New(),
 		backend: backends.MustNew(),
 		grid:    grid,
 		cParam:  c,
-		pipeline: func(ctx *context.Context, g *graph.Graph) *graph.Node {
-			coords := BuildCoordinateGridGraph(g, grid)
-			localMetrics := ComputeLocalMetric(g, coords)
-			distances := SolveGlobalDistances(g, localMetrics, grid.OriginIndex)
-
-			cParam := graph.Const(g, c)
-			dampened := ApplyDiminishingReturns(g, distances, cParam)
-
-			neutralIndices := ExtractNeutralAxis(g, dampened)
-			return ComputeGeometricColor(g, coords, neutralIndices, grid.MinBounds, grid.MaxBounds)
-		},
 	}
 }
 
+func (cs *ColorSpace) BuildPipeline(ctx *context.Context, g *graph.Graph) []*graph.Node {
+	coords := BuildCoordinateGridGraph(g, cs.grid)
+	localMetrics := ComputeLocalMetric(g, coords)
+	distances := SolveGlobalDistances(g, localMetrics, cs.grid.OriginIndex)
+
+	cParam := graph.Const(g, cs.cParam)
+	dampened := ApplyDiminishingReturns(g, distances, cParam)
+
+	neutralIndices := ExtractNeutralIndices(g, dampened)
+	colorsLCH := ComputeGeometricColor(g, coords, neutralIndices, cs.grid.MinBounds, cs.grid.MaxBounds)
+	colorsRGB := ConvertToRGB(g, colorsLCH)
+	neutralAxis := OptimalNeutralAxis(g, colorsLCH)
+
+	// Concatenate the two 4D tensors along the last dimension (the color channels)
+	return []*graph.Node{colorsLCH, colorsRGB, neutralAxis}
+}
+
 func (cs *ColorSpace) Compute() (err error) {
-	e, err := context.NewExec(cs.backend, cs.ctx, cs.pipeline)
+	e, err := context.NewExec(cs.backend, cs.ctx, cs.BuildPipeline)
 	if err != nil {
 		return fmt.Errorf("Failed to compile GoMLX pipeline: %v\n", err)
 	}
@@ -54,41 +61,32 @@ func (cs *ColorSpace) Compute() (err error) {
 		return fmt.Errorf("Failed to execute GoMLX pipeline: %v\n", err)
 	}
 
-	// 4. Extract the 4D float32 tensor
-	cs.results = results[0]
+	// 4. Extract the 4D float64 tensor
+	cs.colorsLCH = results[0]
+	cs.colorsRGB = results[1]
+	cs.neutralAxis = results[2]
 
 	return nil
 }
 
-func (cs *ColorSpace) GetColors() [][][][]float32 {
-	return cs.results.Value().([][][][]float32)
+func (cs *ColorSpace) GetLCHColors() [][][][]float64 {
+	return cs.colorsLCH.Value().([][][][]float64)
+}
+
+func (cs *ColorSpace) GetRGBColors() [][][][]float64 {
+	return cs.colorsRGB.Value().([][][][]float64)
 }
 
 func (cs *ColorSpace) GetNeutralAxis() (neutral_L []float64, neutral_C []float64) {
-	vals := cs.results.Value().([][][][]float32)
+	// Shape is [ResL][2]float64
+	neutralVals := cs.neutralAxis.Value().([][]float64)
 
-	// 5. Process the Neutral Axis
 	neutral_L = make([]float64, cs.grid.ResL)
 	neutral_C = make([]float64, cs.grid.ResL)
 
-	for L := 0; L < cs.grid.ResL; L++ {
-		minC := float32(math.Inf(1))
-		var targetL float32
-
-		for a := 0; a < cs.grid.ResA; a++ {
-			for b := 0; b < cs.grid.ResB; b++ {
-				lVal := vals[L][a][b][0]
-				cVal := vals[L][a][b][1]
-
-				if cVal < minC {
-					minC = cVal
-					targetL = lVal
-				}
-			}
-		}
-
-		neutral_L[L] = float64(targetL)
-		neutral_C[L] = float64(minC)
+	for i := 0; i < cs.grid.ResL; i++ {
+		neutral_L[i] = float64(neutralVals[i][0])
+		neutral_C[i] = float64(neutralVals[i][1])
 	}
 
 	return neutral_L, neutral_C
@@ -96,7 +94,7 @@ func (cs *ColorSpace) GetNeutralAxis() (neutral_L []float64, neutral_C []float64
 
 func (cs *ColorSpace) TraceGeodesic(targetIndex [3]int) (path_L []float64, path_C []float64) {
 	// Safely assert as a 4D slice
-	distVals := cs.results.Value().([][][][]float32)
+	distVals := cs.colorsLCH.Value().([][][][]float64)
 
 	current := targetIndex
 	origin := cs.grid.OriginIndex
@@ -129,7 +127,7 @@ func (cs *ColorSpace) TraceGeodesic(targetIndex [3]int) (path_L []float64, path_
 			path_C = append(path_C, 0.0)
 			break
 		}
-		minDist := float32(math.Inf(1))
+		minDist := float64(math.Inf(1))
 		bestNeighbor := current
 
 		// Search 3D neighborhood

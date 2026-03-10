@@ -13,7 +13,7 @@ type GridConfig struct {
 	OriginIndex      [3]int     // Discrete voxel grid index representing the "Black" origin
 }
 
-// BuildCoordinateGridGraph generates a dense 3D grid of float32 coordinates
+// BuildCoordinateGridGraph generates a dense 3D grid of float64 coordinates
 // representing L, a, and b channels using GoMLX native graphing operations.
 // Returns a stacked tensor of shape [resL, resA, resB, 3].
 func BuildCoordinateGridGraph(ctx *graph.Graph, cfg *GridConfig) *graph.Node {
@@ -25,7 +25,7 @@ func BuildCoordinateGridGraph(ctx *graph.Graph, cfg *GridConfig) *graph.Node {
 		dims[axis] = res
 
 		// Generate index scalar sequence 0, 1, ..., res-1 along the axis
-		iotaNode := graph.Iota(ctx, shapes.Make(dtypes.Float32, dims...), axis)
+		iotaNode := graph.Iota(ctx, shapes.Make(dtypes.Float64, dims...), axis)
 
 		resMinus1 := float64(res - 1)
 		if resMinus1 <= 0 {
@@ -34,8 +34,8 @@ func BuildCoordinateGridGraph(ctx *graph.Graph, cfg *GridConfig) *graph.Node {
 
 		// Compute the static scale multiplier and min bound constants
 		scaleVal := (maxBound - minBound) / resMinus1
-		scaleNode := graph.Scalar(ctx, dtypes.Float32, scaleVal)
-		minNode := graph.Scalar(ctx, dtypes.Float32, minBound)
+		scaleNode := graph.Scalar(ctx, dtypes.Float64, scaleVal)
+		minNode := graph.Scalar(ctx, dtypes.Float64, minBound)
 
 		// Equation: coord = iota * scale + min
 		val := graph.Add(graph.Mul(iotaNode, scaleNode), minNode)

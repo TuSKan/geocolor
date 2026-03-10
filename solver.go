@@ -13,9 +13,9 @@ func SolveGlobalDistances(ctx *graph.Graph, localMetrics *graph.Node, originInde
 	dims := localMetrics.Shape().Dimensions[:3]
 	resL, resA, resB := dims[0], dims[1], dims[2]
 
-	infVal := float32(1e9)
+	infVal := float64(1e9)
 	inf := graph.Const(ctx, infVal)
-	zero := graph.Const(ctx, float32(0.0))
+	zero := graph.Const(ctx, float64(0.0))
 
 	// Create coordinate grids to identify the origin
 	shapeInt32 := shapes.Make(dtypes.Int32, resL, resA, resB)
@@ -49,7 +49,7 @@ func SolveGlobalDistances(ctx *graph.Graph, localMetrics *graph.Node, originInde
 	// Shapes for the loop state: [iter, dist, hasChanged, wL, wa, wb]
 	shapeIter := shapes.Make(dtypes.Int32)
 	shapeBool := shapes.Make(dtypes.Bool)
-	shapeGrid := shapes.Make(dtypes.Float32, resL, resA, resB)
+	shapeGrid := shapes.Make(dtypes.Float64, resL, resA, resB)
 
 	cond := graph.NewClosure(ctx, func(g *graph.Graph) []*graph.Node {
 		iter := graph.Parameter(g, "iter", shapeIter)
@@ -110,7 +110,7 @@ func SolveGlobalDistances(ctx *graph.Graph, localMetrics *graph.Node, originInde
 
 		// Detect if any cell changed meaning convergence hasn't been reached
 		diff := graph.Sub(dist, newDist)
-		changed := graph.GreaterThan(graph.ReduceMax(diff), graph.Const(g, float32(1e-5)))
+		changed := graph.GreaterThan(graph.ReduceMax(diff), graph.Const(g, float64(1e-5)))
 
 		// Increment loop counter
 		nextIter := graph.Add(iter, graph.Const(g, int32(1)))
